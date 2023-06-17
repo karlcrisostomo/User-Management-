@@ -5,6 +5,10 @@ const routes = [
     children: [
       { path: "/", component: () => import("../pages/UserPage.vue") },
       { path: "/leave", component: () => import("../pages/LeavePage.vue") },
+      {
+        path: "/settings",
+        component: () => import("../pages/SettingsPage.vue"),
+      },
     ],
   },
 
