@@ -1,11 +1,13 @@
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import axios from "axios";
+import { useQuasar } from "quasar";
 
 export default {
   setup() {
     const selectedUser = ref(null);
     const isDialogOpen = ref(false);
-
+    const text = ref(""); // Added ref for the user input
+    const isLoading = ref(false);
     const users = ref([]);
     const columns = [
       {
@@ -48,6 +50,7 @@ export default {
     ];
 
     const fetchUsers = async () => {
+      isLoading.value = true;
       try {
         const response = await axios.get(
           "https://jsonplaceholder.typicode.com/users"
@@ -55,6 +58,8 @@ export default {
         users.value = response.data;
       } catch (error) {
         console.error("Error:", error);
+      } finally {
+        isLoading.value = false;
       }
     };
 
@@ -76,15 +81,17 @@ export default {
 
     const deleteUser = async (id) => {
       try {
+        isLoading.value = true;
         await axios.delete(`https://jsonplaceholder.typicode.com/users/${id}`);
         // Remove the user from the users array
         users.value = users.value.filter((user) => user.id !== id);
       } catch (error) {
         console.error("Error:", error);
+      } finally {
+        isLoading.value = false;
       }
     };
 
-    // ...
     const openEditDialog = (user) => {
       selectedUser.value = { ...user };
       isDialogOpen.value = true;
@@ -96,18 +103,62 @@ export default {
 
     const saveUser = async () => {
       try {
-        await updateUser(selectedUser.value.id, selectedUser.value);
+        isLoading.value = true;
+        if (selectedUser.value.id) {
+          // Update existing user
+          await updateUser(selectedUser.value.id, selectedUser.value);
+        } else {
+          // Add a new user
+          const response = await axios.post(
+            "https://jsonplaceholder.typicode.com/users",
+            {
+              name: selectedUser.value.name,
+              username: selectedUser.value.username,
+              email: selectedUser.value.email,
+              address: {
+                street: selectedUser.value.address.street,
+                suite: selectedUser.value.address.suite,
+                city: selectedUser.value.address.city,
+                zipcode: selectedUser.value.address.zipcode,
+              },
+            }
+          );
+          users.value.push(response.data);
+        }
         closeEditDialog();
       } catch (error) {
         console.error("Error:", error);
+      } finally {
+        isLoading.value = false;
       }
     };
+
+    const openAddDialog = () => {
+      selectedUser.value = {
+        name: "",
+        username: "",
+        email: "",
+        address: {
+          street: "",
+          suite: "",
+          city: "",
+          zipcode: "",
+        },
+      };
+      isDialogOpen.value = true;
+    };
+
+    const filteredUsers = computed(() => {
+      return users.value.filter((user) =>
+        user.name.toLowerCase().includes(text.value.toLowerCase())
+      );
+    });
     // ...
 
     onMounted(fetchUsers);
 
     return {
-      users,
+      users: filteredUsers,
       columns,
       updateUser,
       deleteUser,
@@ -116,6 +167,10 @@ export default {
       saveUser,
       isDialogOpen,
       selectedUser,
+      text,
+      filteredUsers,
+      openAddDialog,
+      isLoading,
     };
   },
 };
